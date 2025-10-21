@@ -122,9 +122,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{uniqueVisitors}</div>
-            <p className="text-xs text-muted-foreground">
-              Based on visitor IP
-            </p>
+            <p className="text-xs text-muted-foreground">Based on visitor IP</p>
           </CardContent>
         </Card>
         <Card>
@@ -183,8 +181,7 @@ export default function AnalyticsPage() {
                               {session.tracking_id.slice(0, 24)}...
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {session.brand} • {session.event_count} events •{" "}
-                              {session.visitor_ip || "Unknown IP"}
+                              {session.brand} • {session.event_count} events
                             </p>
                           </div>
                         </div>
@@ -220,12 +217,12 @@ export default function AnalyticsPage() {
                               s
                             </p>
                           </div>
-                          <div>
+                          {/* <div>
                             <p className="font-medium">Visitor IP</p>
                             <p className="text-muted-foreground text-xs">
                               {session.visitor_ip || "Unknown"}
                             </p>
-                          </div>
+                          </div> */}
                           <div>
                             <p className="font-medium">Location</p>
                             <p className="text-muted-foreground text-xs">
@@ -243,108 +240,150 @@ export default function AnalyticsPage() {
                           <p className="font-medium mb-2">Events Timeline</p>
                           <div className="space-y-3 max-h-96 overflow-y-auto">
                             {session.events?.map(
-                              (event: any, eventIndex: number) => (
-                                <div
-                                  key={eventIndex}
-                                  className="border-l-2 border-blue-500 pl-4 py-2"
-                                >
-                                  <div className="flex items-center gap-3 mb-1">
-                                    <Badge variant="secondary">
-                                      {event.event_type}
-                                    </Badge>
-                                    <span className="text-sm text-muted-foreground">
-                                      {new Date(
-                                        event.timestamp
-                                      ).toLocaleTimeString()}
-                                    </span>
-                                  </div>
+                              (event: any, eventIndex: number) => {
+                                const uniqueIPs = new Set(
+                                  session.events.map((e: any) => e.visitor_ip)
+                                );
+                                const ipArray = Array.from(uniqueIPs);
+                                const ipIndex = ipArray.indexOf(
+                                  event.visitor_ip
+                                );
+                                const borderColors = [
+                                  "border-blue-500",
+                                  "border-green-500",
+                                  "border-purple-500",
+                                  "border-orange-500",
+                                  "border-pink-500",
+                                ];
+                                const badgeColors = [
+                                  "bg-blue-100 text-blue-800",
+                                  "bg-green-100 text-green-800",
+                                  "bg-purple-100 text-purple-800",
+                                  "bg-orange-100 text-orange-800",
+                                  "bg-pink-100 text-pink-800",
+                                ];
+                                const borderColor =
+                                  borderColors[ipIndex % borderColors.length];
+                                const badgeColor =
+                                  badgeColors[ipIndex % badgeColors.length];
 
-                                  {event.page_title && (
-                                    <p className="text-sm font-medium">
-                                      {event.page_title}
-                                    </p>
-                                  )}
-
-                                  {event.url && (
-                                    <p className="text-xs text-muted-foreground">
-                                      {event.url}
-                                    </p>
-                                  )}
-
-                                  {event.event_type === "click" && (
-                                    <div className="mt-2 text-xs space-y-1">
-                                      {event.element_text && (
-                                        <p>
-                                          <span className="font-medium">
-                                            Clicked:
-                                          </span>{" "}
-                                          {event.element_text}
-                                        </p>
-                                      )}
-                                      {event.button_text && (
-                                        <p>
-                                          <span className="font-medium">
-                                            Button:
-                                          </span>{" "}
-                                          {event.button_text}
-                                        </p>
-                                      )}
-                                      {event.link_href && (
-                                        <p>
-                                          <span className="font-medium">
-                                            Link:
-                                          </span>{" "}
-                                          {event.link_href}
-                                        </p>
-                                      )}
-                                      {event.click_x && event.click_y && (
-                                        <p>
-                                          <span className="font-medium">
-                                            Position:
-                                          </span>{" "}
-                                          ({event.click_x}, {event.click_y})
-                                        </p>
-                                      )}
-                                      {event.is_external === "true" && (
+                                return (
+                                  <div
+                                    key={eventIndex}
+                                    className={`border-l-2 ${borderColor} pl-4 py-2`}
+                                  >
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <Badge variant="secondary">
+                                        {event.event_type}
+                                      </Badge>
+                                      <span className="text-sm text-muted-foreground">
+                                        {new Date(
+                                          event.timestamp
+                                        ).toLocaleTimeString()}
+                                      </span>
+                                      {event.visitor_ip && (
                                         <Badge
                                           variant="outline"
-                                          className="text-xs"
+                                          className={`text-xs font-mono ${badgeColor}`}
                                         >
-                                          External Link
+                                          {event.visitor_ip.includes(":")
+                                            ? `...${event.visitor_ip.slice(
+                                                -12
+                                              )}`
+                                            : event.visitor_ip}
                                         </Badge>
                                       )}
                                     </div>
-                                  )}
 
-                                  {event.event_type === "scroll_milestone" && (
-                                    <div className="mt-2 text-xs">
-                                      <p>
-                                        <span className="font-medium">
-                                          Scroll Depth:
-                                        </span>{" "}
-                                        {event.depth_percent}%
+                                    {event.page_title && (
+                                      <p className="text-sm font-medium">
+                                        {event.page_title}
                                       </p>
-                                      {event.scroll_pixels && (
+                                    )}
+
+                                    {event.url && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {event.url}
+                                      </p>
+                                    )}
+
+                                    {event.event_type === "click" && (
+                                      <div className="mt-2 text-xs space-y-1">
+                                        {event.element_text && (
+                                          <p>
+                                            <span className="font-medium">
+                                              Clicked:
+                                            </span>{" "}
+                                            {event.element_text}
+                                          </p>
+                                        )}
+                                        {event.button_text && (
+                                          <p>
+                                            <span className="font-medium">
+                                              Button:
+                                            </span>{" "}
+                                            {event.button_text}
+                                          </p>
+                                        )}
+                                        {event.link_href && (
+                                          <p>
+                                            <span className="font-medium">
+                                              Link:
+                                            </span>{" "}
+                                            {event.link_href}
+                                          </p>
+                                        )}
+                                        {event.click_x && event.click_y && (
+                                          <p>
+                                            <span className="font-medium">
+                                              Position:
+                                            </span>{" "}
+                                            ({event.click_x}, {event.click_y})
+                                          </p>
+                                        )}
+                                        {event.is_external === "true" && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-xs"
+                                          >
+                                            External Link
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {event.event_type ===
+                                      "scroll_milestone" && (
+                                      <div className="mt-2 text-xs">
                                         <p>
                                           <span className="font-medium">
-                                            Pixels:
+                                            Scroll Depth:
                                           </span>{" "}
-                                          {event.scroll_pixels}px
+                                          {event.depth_percent}%
+                                        </p>
+                                        {event.scroll_pixels && (
+                                          <p>
+                                            <span className="font-medium">
+                                              Pixels:
+                                            </span>{" "}
+                                            {event.scroll_pixels}px
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {event.referrer &&
+                                      event.referrer !== "" && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          <span className="font-medium">
+                                            Referrer:
+                                          </span>{" "}
+                                          {event.referrer}
                                         </p>
                                       )}
-                                    </div>
-                                  )}
-
-                                  {event.referrer && event.referrer !== "" && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      <span className="font-medium">
-                                        Referrer:
-                                      </span>{" "}
-                                      {event.referrer}
-                                    </p>
-                                  )}
-                                </div>
-                              )
+                                  </div>
+                                );
+                              }
                             )}
                           </div>
                         </div>
@@ -449,7 +488,8 @@ export default function AnalyticsPage() {
                           <div>
                             <p className="font-medium">Location</p>
                             <p className="text-muted-foreground">
-                              {visitor.city}, {visitor.region}, {visitor.country}
+                              {visitor.city}, {visitor.region},{" "}
+                              {visitor.country}
                             </p>
                           </div>
                           <div>

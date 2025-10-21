@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -24,7 +25,15 @@ export function Sidebar() {
   return (
     <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
       <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 shadow-sm">
-        <div className="flex h-16 shrink-0 items-center">
+        <div className="flex h-16 shrink-0 items-center gap-x-3">
+          <Image
+            src="/logo.png"
+            alt="Link Tracker Logo"
+            width={40}
+            height={40}
+            priority
+            unoptimized={true}
+          />
           <h1 className="text-xl font-bold text-gray-900">Link Tracker</h1>
         </div>
         <nav className="flex flex-1 flex-col">

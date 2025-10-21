@@ -58,6 +58,25 @@ export interface AnalyticsEvent {
   visibility_state?: string;
   hidden?: boolean;
 
+  // Click tracking
+  click_x?: string;
+  click_y?: string;
+  viewport_x?: string;
+  viewport_y?: string;
+  element_selector?: string;
+  element_tag?: string;
+  element_text?: string;
+  link_href?: string;
+  link_text?: string;
+  button_text?: string;
+  button_type?: string;
+  is_external?: string;
+
+  // Scroll tracking
+  depth_percent?: string;
+  scroll_pixels?: string;
+  document_height?: string;
+
   metadata?: any;
 }
 
@@ -70,5 +89,19 @@ export interface EventSession {
   country: string;
   city: string;
   user_agent: string;
+  visitor_ip?: string;
+  events: AnalyticsEvent[];
+}
+
+export interface VisitorSession {
+  visitor_ip: string;
+  total_events: number;
+  tracking_ids: string[];
+  brands: string[];
+  first_seen: string;
+  last_seen: string;
+  country: string;
+  city: string;
+  region: string;
   events: AnalyticsEvent[];
 }

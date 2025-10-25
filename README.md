@@ -61,6 +61,9 @@ A comprehensive analytics dashboard for the Universal Link Tracker system built 
    # API Gateway
    NEXT_PUBLIC_API_GATEWAY_URL=https://your-api-gateway-url
 
+   # Link Tracker API Key (required for POST /links)
+   LINK_TRACKER_API_KEY=your-api-key-here
+
    # App Configuration
    NEXT_PUBLIC_APP_NAME=Universal Link Tracker Dashboard
    NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -130,12 +133,47 @@ dashboard/
 
 ### Links
 
-- `POST /api/links` - Create new tracked link
+- `POST /api/links` - Create new tracked link (requires API key)
+  - **Headers**: `x-api-key` (automatically added by backend)
+  - **Rate Limits**: 100 requests/second, 200 burst, 100k/day
+  - **Error Responses**:
+    - `403 Forbidden` - Invalid or missing API key
+    - `429 Too Many Requests` - Rate limit exceeded (includes `Retry-After` header)
+    - `400 Bad Request` - Validation errors
+    - `500 Internal Server Error` - Server errors
 
 ### Analytics
 
 - `GET /api/events/sessions` - Get user sessions
 - `GET /api/stats/overview` - Get dashboard overview statistics
+
+## 🛡️ Error Handling
+
+The dashboard includes comprehensive error handling for all API operations:
+
+### Link Creation Errors
+
+**Authentication Errors (403)**
+- Displayed message: "Invalid or missing API key. Please contact your administrator."
+- Action: Contact system administrator to verify API key configuration
+
+**Rate Limiting Errors (429)**
+- Displayed message: "Rate limit exceeded. Please try again in X seconds."
+- Action: Automatic retry suggestion with countdown timer
+- The error toast will display for the duration of the retry period
+
+**Validation Errors (400)**
+- Displayed message: Specific validation error details
+- Action: Correct the input and retry
+
+### Rate Limit Information
+
+The API enforces the following rate limits:
+- **POST /links**: 100 requests/second, 200 burst capacity, 100,000 requests/day
+- **GET /track**: 1,000 requests/minute per IP
+- **GET /pixel.js**: 10,000 requests/minute per IP
+
+Rate limit headers are parsed and displayed to users when limits are approached.
 
 ## 🚀 Deployment
 
@@ -176,6 +214,7 @@ Make sure to set all required environment variables in your deployment platform:
 - `DYNAMODB_EVENTS_TABLE`
 - `DYNAMODB_LEGACY_TABLE`
 - `NEXT_PUBLIC_API_GATEWAY_URL`
+- `LINK_TRACKER_API_KEY` (required for link creation)
 
 ## 🔐 Security
 
@@ -184,6 +223,9 @@ Make sure to set all required environment variables in your deployment platform:
 - HTTP-only cookies for session storage
 - Middleware protection for all dashboard routes
 - Secure headers in production
+- API key authentication for link creation endpoint
+- Rate limiting protection (100 req/sec, 100k daily quota)
+- Automatic retry handling for rate limit errors
 
 ## 📊 Features Overview
 

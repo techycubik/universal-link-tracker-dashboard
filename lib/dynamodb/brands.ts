@@ -63,6 +63,27 @@ export async function getBrandLink(
 }
 
 /**
+ * Parse rate limit headers from response
+ */
+function parseRateLimitHeaders(response: Response): {
+  limit: number | null;
+  remaining: number | null;
+  retryAfter: number | null;
+} {
+  return {
+    limit: response.headers.get("X-RateLimit-Limit")
+      ? parseInt(response.headers.get("X-RateLimit-Limit")!)
+      : null,
+    remaining: response.headers.get("X-RateLimit-Remaining")
+      ? parseInt(response.headers.get("X-RateLimit-Remaining")!)
+      : null,
+    retryAfter: response.headers.get("Retry-After")
+      ? parseInt(response.headers.get("Retry-After")!)
+      : null,
+  };
+}
+
+/**
  * Create a new brand link (via API Gateway)
  */
 export async function createBrandLink(data: {
@@ -74,17 +95,55 @@ export async function createBrandLink(data: {
   metadata?: any;
 }): Promise<BrandLink> {
   const apiUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
+  const apiKey = process.env.LINK_TRACKER_API_KEY;
+
+  if (!apiKey) {
+    throw new Error(
+      "API key not configured. Please set LINK_TRACKER_API_KEY environment variable."
+    );
+  }
 
   const response = await fetch(`${apiUrl}/links`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "x-api-key": apiKey,
     },
     body: JSON.stringify(data),
   });
 
+  // Handle authentication errors (403)
+  if (response.status === 403) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.message ||
+        "Invalid or missing API key. Please check your configuration."
+    );
+  }
+
+  // Handle rate limiting errors (429)
+  if (response.status === 429) {
+    const rateLimitInfo = parseRateLimitHeaders(response);
+    const errorData = await response.json().catch(() => ({}));
+
+    const retryMessage = rateLimitInfo.retryAfter
+      ? ` Please try again in ${rateLimitInfo.retryAfter} seconds.`
+      : " Please try again later.";
+
+    throw new Error(
+      errorData.message ||
+        `Rate limit exceeded.${retryMessage}` ||
+        "Too many requests. Please try again later.",
+      { cause: { code: 429, retryAfter: rateLimitInfo.retryAfter } } as any
+    );
+  }
+
+  // Handle other errors
   if (!response.ok) {
-    throw new Error("Failed to create link");
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error || errorData.message || "Failed to create link"
+    );
   }
 
   return response.json();

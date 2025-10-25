@@ -58,6 +58,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle specific error types from the API
+    if (error instanceof Error) {
+      const errorMessage = error.message;
+      const errorCause = (error as any).cause;
+
+      // Authentication errors (403)
+      if (
+        errorMessage.includes("API key") ||
+        errorMessage.includes("Forbidden")
+      ) {
+        console.error("API Authentication error:", errorMessage);
+        return NextResponse.json(
+          {
+            error: "Authentication failed",
+            message:
+              "Invalid or missing API key. Please contact the administrator.",
+          },
+          { status: 403 }
+        );
+      }
+
+      // Rate limiting errors (429)
+      if (
+        errorMessage.includes("Rate limit") ||
+        errorCause?.code === 429
+      ) {
+        console.warn("Rate limit exceeded:", errorMessage);
+        return NextResponse.json(
+          {
+            error: "Rate limit exceeded",
+            message: errorMessage,
+            retryAfter: errorCause?.retryAfter || null,
+          },
+          {
+            status: 429,
+            headers: errorCause?.retryAfter
+              ? { "Retry-After": String(errorCause.retryAfter) }
+              : {},
+          }
+        );
+      }
+
+      // Generic error with message
+      console.error("Error creating link:", errorMessage);
+      return NextResponse.json(
+        { error: "Failed to create link", message: errorMessage },
+        { status: 500 }
+      );
+    }
+
     console.error("Error creating link:", error);
     return NextResponse.json(
       { error: "Failed to create link" },

@@ -118,7 +118,32 @@ export function CreateLinkDialog({
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || "Failed to create link");
+
+        // Handle authentication errors (403)
+        if (res.status === 403) {
+          throw new Error(
+            error.message ||
+              "Invalid or missing API key. Please contact your administrator."
+          );
+        }
+
+        // Handle rate limiting errors (429)
+        if (res.status === 429) {
+          const retryAfter = error.retryAfter || res.headers.get("Retry-After");
+          const retryMessage = retryAfter
+            ? ` Please try again in ${retryAfter} seconds.`
+            : " Please try again later.";
+
+          throw new Error(
+            error.message || `Rate limit exceeded.${retryMessage}`,
+            { cause: { code: 429, retryAfter } } as any
+          );
+        }
+
+        // Generic error
+        throw new Error(
+          error.message || error.error || "Failed to create link"
+        );
       }
 
       return res.json();
@@ -130,7 +155,22 @@ export function CreateLinkDialog({
       queryClient.invalidateQueries({ queryKey: ["links"] });
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to create link");
+      const errorCause = (error as any).cause;
+
+      // Show specific error message for rate limiting
+      if (errorCause?.code === 429) {
+        const retryAfter = errorCause.retryAfter;
+        if (retryAfter) {
+          toast.error(error.message, {
+            duration: retryAfter * 1000, // Show for duration of retry period
+          });
+        } else {
+          toast.error(error.message);
+        }
+      } else {
+        // Show generic error
+        toast.error(error.message || "Failed to create link");
+      }
     },
   });
 

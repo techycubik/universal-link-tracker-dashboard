@@ -11,6 +11,15 @@ frontend:
         - npm ci
     build:
       commands:
+        # CRITICAL FIX: Next.js 15 requires this flag for Amplify deployment
+        - echo "__NEXT_PRIVATE_PREBUNDLED_REACT=next" >> .env.production
+
+        # Inject NEXT_PUBLIC_* environment variables from Amplify Console into build
+        # Amplify doesn't automatically make env vars available during build like Vercel does
+        - echo "NEXT_PUBLIC_API_GATEWAY_URL=$NEXT_PUBLIC_API_GATEWAY_URL" >> .env.production
+        - echo "NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME" >> .env.production
+        - echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env.production
+
         - echo "Building Next.js application..."
         - npm run build
   artifacts:

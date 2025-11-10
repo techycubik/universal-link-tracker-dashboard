@@ -14,6 +14,16 @@ frontend:
         # CRITICAL FIX: Next.js 15 requires this flag for Amplify deployment
         - echo "__NEXT_PRIVATE_PREBUNDLED_REACT=next" >> .env.production
 
+        # Inject runtime environment variables (for API routes)
+        - echo "DASHBOARD_PASSWORD_HASH=$DASHBOARD_PASSWORD_HASH" >> .env.production
+        - echo "JWT_SECRET=$JWT_SECRET" >> .env.production
+        - echo "DYNAMODB_BRANDS_TABLE=$DYNAMODB_BRANDS_TABLE" >> .env.production
+        - echo "DYNAMODB_EVENTS_TABLE=$DYNAMODB_EVENTS_TABLE" >> .env.production
+        - echo "DYNAMODB_LEGACY_TABLE=$DYNAMODB_LEGACY_TABLE" >> .env.production
+        - echo "CUSTOM_AWS_REGION=$CUSTOM_AWS_REGION" >> .env.production
+        - echo "CUSTOM_AWS_ACCESS_KEY_ID=$CUSTOM_AWS_ACCESS_KEY_ID" >> .env.production
+        - echo "CUSTOM_AWS_SECRET_ACCESS_KEY=$CUSTOM_AWS_SECRET_ACCESS_KEY" >> .env.production
+
         # Inject NEXT_PUBLIC_* environment variables from Amplify Console into build
         # Amplify doesn't automatically make env vars available during build like Vercel does
         - echo "NEXT_PUBLIC_API_GATEWAY_URL=$NEXT_PUBLIC_API_GATEWAY_URL" >> .env.production

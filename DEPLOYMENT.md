@@ -42,9 +42,9 @@ Vercel is the recommended platform for deploying Next.js applications, offering 
    ```env
    DASHBOARD_PASSWORD_HASH=your-bcrypt-hashed-password
    JWT_SECRET=your-super-secret-jwt-key-min-32-characters
-   AWS_REGION=us-east-2
-   AWS_ACCESS_KEY_ID=your-access-key
-   AWS_SECRET_ACCESS_KEY=your-secret-key
+   CUSTOM_AWS_REGION=us-east-2
+   CUSTOM_AWS_ACCESS_KEY_ID=your-access-key
+   CUSTOM_AWS_SECRET_ACCESS_KEY=your-secret-key
    DYNAMODB_BRANDS_TABLE=universal-link-tracker-brands-production
    DYNAMODB_EVENTS_TABLE=universal-link-tracker-events-production
    DYNAMODB_LEGACY_TABLE=universal-link-tracker-production
@@ -191,9 +191,9 @@ docker run -d \
   -p 3000:3000 \
   -e DASHBOARD_PASSWORD_HASH="$2a$10$..." \
   -e JWT_SECRET="your-secret" \
-  -e AWS_REGION="us-east-2" \
-  -e AWS_ACCESS_KEY_ID="AKIA..." \
-  -e AWS_SECRET_ACCESS_KEY="..." \
+  -e CUSTOM_AWS_REGION="us-east-2" \
+  -e CUSTOM_AWS_ACCESS_KEY_ID="AKIA..." \
+  -e CUSTOM_AWS_SECRET_ACCESS_KEY="..." \
   -e DYNAMODB_BRANDS_TABLE="..." \
   -e DYNAMODB_EVENTS_TABLE="..." \
   -e DYNAMODB_LEGACY_TABLE="..." \
@@ -209,14 +209,52 @@ docker run -d \
 
 ### Using AWS Amplify
 
-1. **Connect repository**:
+**Important**: AWS Amplify blocks environment variables with the `AWS_` prefix. This app uses `CUSTOM_AWS_*` prefixed variables and IAM roles for authentication.
+
+#### Recommended Approach: IAM Service Role (Most Secure)
+
+1. **Create IAM Service Role**:
+
+   - Go to AWS IAM Console → Roles
+   - Create a new role for "Amplify - Backend Deployment"
+   - Attach the following policy (replace table names with yours):
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "dynamodb:GetItem",
+           "dynamodb:PutItem",
+           "dynamodb:UpdateItem",
+           "dynamodb:Query",
+           "dynamodb:Scan",
+           "dynamodb:DeleteItem"
+         ],
+         "Resource": [
+           "arn:aws:dynamodb:us-east-2:*:table/universal-link-tracker-brands-production",
+           "arn:aws:dynamodb:us-east-2:*:table/universal-link-tracker-events-production",
+           "arn:aws:dynamodb:us-east-2:*:table/universal-link-tracker-production"
+         ]
+       }
+     ]
+   }
+   ```
+
+2. **Connect repository**:
 
    - Go to AWS Amplify Console
    - Click "New app" → "Host web app"
    - Connect to your GitHub repository
-   - If dashboard is in a subdirectory, configure the monorepo settings
+   - Set **App root directory** to `dashboard` (monorepo configuration)
 
-2. **Configure build settings**:
+3. **Configure build settings**:
+
+   The project includes an [amplify.yml](dashboard/amplify.yml) file. Amplify will detect it automatically.
+
+   Alternatively, manually configure:
 
    ```yaml
    version: 1
@@ -224,30 +262,75 @@ docker run -d \
      phases:
        preBuild:
          commands:
+           - echo "Node version:"
            - node --version
+           - echo "NPM version:"
            - npm --version
+           - echo "Installing dependencies..."
            - npm ci
        build:
          commands:
+           - echo "Building Next.js application..."
            - npm run build
      artifacts:
        baseDirectory: .next
        files:
-         - "**/*"
+         - '**/*'
      cache:
        paths:
          - node_modules/**/*
          - .next/cache/**/*
    env:
      variables:
-       NODE_VERSION: "18"
+       NODE_VERSION: '20'
+       NEXT_TELEMETRY_DISABLED: '1'
    ```
 
-   > **Note**: If dashboard is in a subdirectory, update the `baseDirectory` and add `cd dashboard` before commands.
+4. **Attach IAM Service Role**:
 
-3. **Add environment variables**:
-   - Go to App settings → Environment variables
-   - Add all required variables from [.env.example](dashboard/.env.example)
+   - Go to App Settings → General
+   - Edit "Service role"
+   - Select the IAM role created in step 1
+   - Save changes
+
+5. **Add environment variables**:
+
+   Go to App settings → Environment variables and add:
+
+   ```env
+   # Authentication
+   DASHBOARD_PASSWORD_HASH=your-bcrypt-hashed-password
+   JWT_SECRET=your-super-secret-jwt-key-min-32-characters
+
+   # DynamoDB Tables
+   DYNAMODB_BRANDS_TABLE=universal-link-tracker-brands-production
+   DYNAMODB_EVENTS_TABLE=universal-link-tracker-events-production
+   DYNAMODB_LEGACY_TABLE=universal-link-tracker-production
+
+   # Public Variables
+   NEXT_PUBLIC_API_GATEWAY_URL=https://your-api-gateway-url
+   NEXT_PUBLIC_APP_NAME=Universal Link Tracker Dashboard
+   NEXT_PUBLIC_APP_URL=https://your-amplify-domain.amplifyapp.com
+   ```
+
+   **Note**: Do NOT add `AWS_*` or `CUSTOM_AWS_*` credential variables. The IAM service role handles authentication automatically.
+
+6. **Deploy**:
+   - Save and deploy
+   - Amplify will automatically build and deploy your app
+   - Access your app at the provided Amplify URL
+
+#### Alternative: Using Access Keys (Less Secure)
+
+If you cannot use IAM roles (e.g., testing), use `CUSTOM_AWS_*` prefixed variables:
+
+```env
+CUSTOM_AWS_REGION=us-east-2
+CUSTOM_AWS_ACCESS_KEY_ID=your-access-key
+CUSTOM_AWS_SECRET_ACCESS_KEY=your-secret-key
+```
+
+Add these to Amplify environment variables along with the variables from step 5 above.
 
 ### Using AWS ECS (Elastic Container Service)
 
@@ -279,19 +362,21 @@ All required environment variables are documented in [.env.example](dashboard/.e
 
 ### Required Variables
 
-| Variable                      | Description                       | Example                                    |
-| ----------------------------- | --------------------------------- | ------------------------------------------ |
-| `DASHBOARD_PASSWORD_HASH`     | Bcrypt hashed password            | `$2a$10$...`                               |
-| `JWT_SECRET`                  | JWT signing secret (min 32 chars) | Generated with `openssl rand -base64 32`   |
-| `AWS_REGION`                  | AWS region                        | `us-east-2`                                |
-| `AWS_ACCESS_KEY_ID`           | AWS access key                    | `AKIA...`                                  |
-| `AWS_SECRET_ACCESS_KEY`       | AWS secret key                    | `secret...`                                |
-| `DYNAMODB_BRANDS_TABLE`       | Brands table name                 | `universal-link-tracker-brands-production` |
-| `DYNAMODB_EVENTS_TABLE`       | Events table name                 | `universal-link-tracker-events-production` |
-| `DYNAMODB_LEGACY_TABLE`       | Legacy table name                 | `universal-link-tracker-production`        |
-| `NEXT_PUBLIC_API_GATEWAY_URL` | API Gateway URL                   | `https://api.example.com`                  |
-| `NEXT_PUBLIC_APP_NAME`        | App name                          | `Universal Link Tracker Dashboard`         |
-| `NEXT_PUBLIC_APP_URL`         | App URL                           | `https://dashboard.example.com`            |
+| Variable                        | Description                       | Example                                    |
+| ------------------------------- | --------------------------------- | ------------------------------------------ |
+| `DASHBOARD_PASSWORD_HASH`       | Bcrypt hashed password            | `$2a$10$...`                               |
+| `JWT_SECRET`                    | JWT signing secret (min 32 chars) | Generated with `openssl rand -base64 32`   |
+| `CUSTOM_AWS_REGION`             | AWS region                        | `us-east-2`                                |
+| `CUSTOM_AWS_ACCESS_KEY_ID`      | AWS access key                    | `AKIA...`                                  |
+| `CUSTOM_AWS_SECRET_ACCESS_KEY`  | AWS secret key                    | `secret...`                                |
+| `DYNAMODB_BRANDS_TABLE`         | Brands table name                 | `universal-link-tracker-brands-production` |
+| `DYNAMODB_EVENTS_TABLE`         | Events table name                 | `universal-link-tracker-events-production` |
+| `DYNAMODB_LEGACY_TABLE`         | Legacy table name                 | `universal-link-tracker-production`        |
+| `NEXT_PUBLIC_API_GATEWAY_URL`   | API Gateway URL                   | `https://api.example.com`                  |
+| `NEXT_PUBLIC_APP_NAME`          | App name                          | `Universal Link Tracker Dashboard`         |
+| `NEXT_PUBLIC_APP_URL`           | App URL                           | `https://dashboard.example.com`            |
+
+> **Note**: For AWS Amplify deployments, use IAM service roles instead of `CUSTOM_AWS_*` credentials (more secure). For local/Docker/Vercel, use `CUSTOM_AWS_*` variables.
 
 ### Setup Instructions
 
